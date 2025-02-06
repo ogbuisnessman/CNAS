@@ -1,0 +1,119 @@
+import javax.swing.*;
+import java.awt.*;
+import java.awt.event.ActionEvent;
+import java.awt.event.ActionListener;
+import java.awt.image.BufferedImage;
+import javax.imageio.ImageIO;
+import java.io.File;
+import java.io.IOException;
+import java.time.LocalDate;
+import java.time.format.DateTimeFormatter;
+import java.util.Random;
+
+public class ShopifySalesGraph extends JPanel {
+    private static final int DAYS = 14;
+    private static final int WIDTH = 800;
+    private static final int HEIGHT = 500;
+    private int[] sales;
+    private String[] dates;
+
+    public ShopifySalesGraph() {
+        sales = new int[DAYS];
+        dates = new String[DAYS];
+        generateSalesData();
+        setPreferredSize(new Dimension(WIDTH, HEIGHT));
+        setDoubleBuffered(true);
+    }
+
+    private void generateSalesData() {
+        Random random = new Random();
+        LocalDate startDate = LocalDate.now().minusDays(DAYS - 1);
+        int cumulativeSales = 1000;
+
+        for (int i = 0; i < DAYS; i++) {
+            int dailySale = 300 + random.nextInt(1000);
+            cumulativeSales += dailySale;
+            sales[i] = cumulativeSales;
+            dates[i] = startDate.plusDays(i).format(DateTimeFormatter.ofPattern("MM/dd"));
+        }
+        repaint(); // Refresh graph when data updates
+    }
+
+    @Override
+    protected void paintComponent(Graphics g) {
+        super.paintComponent(g);
+        int padding = 50;
+        int graphWidth = getWidth() - 2 * padding;
+        int graphHeight = getHeight() - 2 * padding;
+        int maxSales = sales[DAYS - 1];
+
+        // Draw Axes
+        g.drawLine(padding, getHeight() - padding, getWidth() - padding, getHeight() - padding);
+        g.drawLine(padding, padding, padding, getHeight() - padding);
+
+        // Draw Grid Lines
+        g.setColor(Color.LIGHT_GRAY);
+        for (int i = 1; i <= 5; i++) {
+            int y = getHeight() - padding - (i * graphHeight / 5);
+            g.drawLine(padding, y, getWidth() - padding, y);
+        }
+        g.setColor(Color.BLACK);
+
+        // Plot Sales Data
+        for (int i = 0; i < DAYS; i++) {
+            int x = padding + (i * graphWidth / (DAYS - 1));
+            int y = getHeight() - padding - (sales[i] * graphHeight / maxSales);
+            g.fillOval(x - 3, y - 3, 6, 6);
+
+            if (i > 0) {
+                int prevX = padding + ((i - 1) * graphWidth / (DAYS - 1));
+                int prevY = getHeight() - padding - (sales[i - 1] * graphHeight / maxSales);
+                g.drawLine(prevX, prevY, x, y);
+            }
+
+            g.drawString(dates[i], x - 15, getHeight() - padding + 15);
+        }
+    }
+
+    public void refreshGraph() {
+        generateSalesData();
+    }
+
+    public void saveGraphAsImage() {
+        BufferedImage image = new BufferedImage(getWidth(), getHeight(), BufferedImage.TYPE_INT_ARGB);
+        Graphics2D g2d = image.createGraphics();
+        paint(g2d);
+        g2d.dispose();
+
+        try {
+            ImageIO.write(image, "png", new File("ShopifySalesGraph.png"));
+            JOptionPane.showMessageDialog(this, "Graph saved as ShopifySalesGraph.png");
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+    }
+
+    public static void main(String[] args) {
+        SwingUtilities.invokeLater(() -> {
+            JFrame frame = new JFrame("Shopify Sales Graph");
+            ShopifySalesGraph graphPanel = new ShopifySalesGraph();
+
+            JButton refreshButton = new JButton("Refresh Data");
+            refreshButton.addActionListener(e -> graphPanel.refreshGraph());
+
+            JButton saveButton = new JButton("Save as Image");
+            saveButton.addActionListener(e -> graphPanel.saveGraphAsImage());
+
+            JPanel controlPanel = new JPanel();
+            controlPanel.add(refreshButton);
+            controlPanel.add(saveButton);
+
+            frame.setLayout(new BorderLayout());
+            frame.add(graphPanel, BorderLayout.CENTER);
+            frame.add(controlPanel, BorderLayout.SOUTH);
+            frame.setSize(WIDTH, HEIGHT);
+            frame.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
+            frame.setVisible(true);
+        });
+    }
+}
